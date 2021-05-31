@@ -1,9 +1,12 @@
 package com.msw.java;
 
 import com.deepoove.poi.XWPFTemplate;
+import com.deepoove.poi.config.Configure;
 import com.deepoove.poi.data.DocxRenderData;
 import com.deepoove.poi.data.RowRenderData;
 import com.deepoove.poi.data.TextRenderData;
+import com.deepoove.poi.policy.HackLoopTableRenderPolicy;
+import org.apache.commons.lang3.ClassPathUtils;
 
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -23,7 +26,7 @@ import java.util.Map;
  * @version 1.0
  */
 public class App {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
 
 
         //使用jar的命令，参数有4个，如果没有4个直接退出，没得商量
@@ -55,20 +58,22 @@ public class App {
     }
 
 
-    public static void MySQLDetail(Map<String, String> map) throws IOException {
-		//默认生成的文件名
-		String outFile = map.get("-d") + "/数据库表结构(MySQL).docx";
-		//查询表的名称以及一些表需要的信息
-		String mysqlSql1 = "SELECT table_name, table_type , ENGINE,table_collation,table_comment, create_options FROM information_schema.TABLES WHERE table_schema='" + map.get("-n") + "'";
-		//查询表的结构信息
-		String mysqlSql2 = "SELECT ordinal_position,column_name,column_type, column_key, extra ,is_nullable, column_default, column_comment,data_type,character_maximum_length "
-				+ "FROM information_schema.columns WHERE table_schema='" + map.get("-n") + "' and table_name='";
-		ResultSet rs = SqlUtils.getResultSet(SqlUtils.getConnnection(String.format("jdbc:mysql://%s:%s", map.get("h"), map.get("p")), map.get("-u"), map.get("-p")), mysqlSql1);
-		Connection con = SqlUtils.getConnnection(String.format("jdbc:mysql://%s:%s", map.get("h"), map.get("p")), map.get("-u"), map.get("-p"));
-        createDocDetail(rs, mysqlSql2, map, outFile, true, "MySQL数据库表结构", con);
-	}
+    public static void MySQLDetail(Map<String, String> map) throws Exception {
+        //默认生成的文件名
+        String outFile = map.get("-d") + "/数据库表结构(MySQL).docx";
+        //查询表的名称以及一些表需要的信息
+        String mysqlSql1 = "SELECT table_name, table_type , ENGINE,table_collation,table_comment, create_options FROM information_schema.TABLES WHERE table_schema='" + map.get("-n") + "'";
+        //查询表的结构信息
+        String mysqlSql2 = "SELECT ordinal_position,column_name,column_type, column_key, extra ,is_nullable, column_default, column_comment,data_type,character_maximum_length "
+                + "FROM information_schema.columns WHERE table_schema='" + map.get("-n") + "' and table_name='";
+        String mysqlSql3 = "SHOW CREATE TABLE ";
+        ResultSet rs = SqlUtils.getResultSet(SqlUtils.getConnnection(String.format("jdbc:mysql://%s:%s", map.get("h"), map.get("p")), map.get("-u"), map.get("-p")), mysqlSql1);
+        Connection con = SqlUtils.getConnnection(String.format("jdbc:mysql://%s:%s", map.get("h"), map.get("p")), map.get("-u"), map.get("-p"));
+        SqlUtils.executeSQL(con, "use miitprc_pro");
+        createDocDetail(rs, mysqlSql2, map, outFile, true, "MySQL数据库表结构", con, mysqlSql3);
+    }
 
-    private static void createDocDetail(ResultSet rs, String sqls, Map<String, String> map, String outFile, boolean type, String title, Connection con) throws IOException {
+    private static void createDocDetail(ResultSet rs, String sqls, Map<String, String> map, String outFile, boolean type, String title, Connection con, String sql3) throws IOException, SQLException {
         System.out.println("开始生成文件");
         List<Map<String, String>> list = getTableName(rs);
         Map<String, Object> datas = new HashMap<>();
@@ -76,27 +81,35 @@ public class App {
         List<TableData> tableList = new ArrayList<>();
         int i = 0;
         for (Map<String, String> str : list) {
+            if (str.get("table_name").startsWith("QRTZ") || str.get("table_name").startsWith("qrtz")) {
+                continue;
+            }
             System.out.println(str);
             i++;
-            String sql = sqls + str.get("table_name") + "'";
+            String sql = sql3 + str.get("table_name");
             ResultSet set = SqlUtils.getResultSet(con, sql);
-            List<ColumnData> columnList = getRowRenderDataDetail(set);
+            String ddl = "";
+            if (set.next()) {
+                ddl = set.getString("create table");
+            }
+            set.close();
+            sql = sqls + str.get("table_name") + "'";
+            set = SqlUtils.getResultSet(con, sql);
+
             TableData table = new TableData();
+            List<ColumnData> columnList = getRowRenderDataDetail(set, table);
             table.setNo(String.valueOf(i));
             table.setTableComment(str.get("table_comment"));
             table.setTableName(str.get("table_name"));
             table.setColumnList(columnList);
+            table.setDdlSql(ddl);
             tableList.add(table);
         }
 
-//		datas.put("tablelist", new DocxRenderData(FileUtils.Base64ToFile(outFile,type), tableList));
-//		XWPFTemplate template = XWPFTemplate.compile(FileUtils.Base64ToInputStream()).render(datas);
-        //渲染表格  动态行
-//		DynamicTableRenderPolicy  policy = new DynamicTableRenderPolicy();
-//		Configure config = Configure.builder().bind("tablelist", policy).build();
-
-        datas.put("tablelist", new DocxRenderData(FileUtils.newTemplateFile(outFile), tableList));
-        XWPFTemplate template = XWPFTemplate.compile(FileUtils.Base64ToInputStream()).render(datas);
+        datas.put("tableList", tableList);
+        HackLoopTableRenderPolicy policy = new HackLoopTableRenderPolicy();
+        Configure config = Configure.builder().bind("columnList", policy).build();
+        XWPFTemplate template = XWPFTemplate.compile(FileUtils.TemplateInputStream(), config).render(datas);
 
         FileOutputStream out = null;
         try {
@@ -118,44 +131,48 @@ public class App {
         }
     }
 
-    private static List<ColumnData> getRowRenderDataDetail(ResultSet set) {
+    private static List<ColumnData> getRowRenderDataDetail(ResultSet set, TableData tableData) {
         List<ColumnData> result = new ArrayList<>();
 
-		try {
-			int i = 0;
-			while(set.next()){
-				i++;
-				String cml = "";
-				if (set.getString("character_maximum_length") != null) {
-					cml = "(" + set.getString("character_maximum_length") + ")";
-				}
-				String autoIncrement = "";
-				if ("auto_increment".equalsIgnoreCase(set.getString("extra"))) {
-					autoIncrement = "是";
-				}
-				String columnDefault = "";
-				if (set.getString("column_default") != null) {
-					columnDefault = set.getString("column_default");
-				}
-				String prk = "";
-				if ("PRI".equalsIgnoreCase(set.getString("column_key"))) {
-					prk = "Y";
-				}
-				String qbd = "";
-				ColumnData column = new ColumnData();
-				column.setOrdinalPosition(set.getString("ordinal_position"));
+        try {
+            int i = 0;
+            while (set.next()) {
+                i++;
+                String cml = "";
+                if (set.getString("character_maximum_length") != null) {
+                    cml = "(" + set.getString("character_maximum_length") + ")";
+                }
+                String autoIncrement = "";
+                if ("auto_increment".equalsIgnoreCase(set.getString("extra"))) {
+                    autoIncrement = "是";
+                }
+                String columnDefault = "";
+                if (set.getString("column_default") != null) {
+                    columnDefault = set.getString("column_default");
+                }
+                String prk = "";
+                if ("PRI".equalsIgnoreCase(set.getString("column_key"))) {
+                    prk = "Y";
+                    tableData.setPriColumn(tableData.getPriColumn() + set.getString("column_name") + ",");
+                }
+                String qbd = "";
+                ColumnData column = new ColumnData();
+                column.setOrdinalPosition(set.getString("ordinal_position"));
                 column.setColumnName(set.getString("column_name"));
-				column.setDataType(set.getString("data_type")+cml);
-                column.setNullable(set.getString("is_nullable").substring(0, 1)+"");
-				column.setPrk(prk);
-				column.setQbd(qbd);
-				column.setColumnDefault(columnDefault);
-				column.setColumnComment(set.getString("column_comment"));
-				result.add(column);
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+                column.setDataType(set.getString("data_type") + cml);
+                column.setNullable(set.getString("is_nullable").substring(0, 1) + "");
+                column.setPrk(prk);
+                column.setQbd(qbd);
+                column.setColumnDefault(columnDefault);
+                column.setColumnComment(set.getString("column_comment"));
+                result.add(column);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        if (tableData.getPriColumn() != null && tableData.getPriColumn().length() > 0) {
+            tableData.setPriColumn(tableData.getPriColumn().substring(0, tableData.getPriColumn().length() - 1));
+        }
 
         return result;
     }

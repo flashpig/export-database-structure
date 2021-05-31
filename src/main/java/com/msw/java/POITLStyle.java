@@ -16,7 +16,7 @@ public class POITLStyle {
 	
 	public static TableStyle getHeaderTableStyle(){
 		TableStyle style = new TableStyle();;
-		style.setBackgroundColor("B7B7B7");
+//		style.setBackgroundColor("B7B7B7");
 		return style;
 	}
 	
@@ -31,7 +31,7 @@ public class POITLStyle {
 	
 	public static TableStyle getBodyTableStyle(){
 		TableStyle style = new TableStyle();;
-		style.setBackgroundColor("DEDEDE");
+//		style.setBackgroundColor("DEDEDE");
 		return style;
 	}
 }

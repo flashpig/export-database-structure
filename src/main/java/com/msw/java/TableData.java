@@ -9,7 +9,10 @@ public class TableData {
 
     private List<ColumnData> priColumnList = new ArrayList<>();
 
-    private String ddlSql;
+    private String priColumn = "";
+    private String priColumnName = "";
+
+    private String ddlSql = "DDL SQL";
     private String tableComment;
 
     private List<ColumnData> columnList = new ArrayList<>();
@@ -60,5 +63,21 @@ public class TableData {
 
     public void setColumnList(List<ColumnData> columnList) {
         this.columnList = columnList;
+    }
+
+    public String getPriColumn() {
+        return priColumn;
+    }
+
+    public void setPriColumn(String priColumn) {
+        this.priColumn = priColumn;
+    }
+
+    public String getPriColumnName() {
+        return priColumnName;
+    }
+
+    public void setPriColumnName(String priColumnName) {
+        this.priColumnName = priColumnName;
     }
 }

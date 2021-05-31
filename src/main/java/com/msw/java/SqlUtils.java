@@ -42,4 +42,12 @@ public class SqlUtils {
 			return null;
 		}
 	}
+	public static void executeSQL(Connection conn ,String sql){
+		try {
+			Statement stat = conn.createStatement();
+			stat.execute(sql);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
 }

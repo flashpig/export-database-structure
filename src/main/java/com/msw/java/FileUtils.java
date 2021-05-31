@@ -1,6 +1,7 @@
 package com.msw.java;
 
 import java.io.*;
+import java.net.URL;
 import java.util.Base64;
 
 public class FileUtils {
@@ -18,6 +19,12 @@ public class FileUtils {
 		byte[] bs = Base64.getDecoder().decode(mainFileString);
 		stream = new ByteArrayInputStream(bs);
 		return stream;
+	}
+
+	public static InputStream TemplateInputStream() throws FileNotFoundException {
+		ClassLoader classLoader = FileUtils.class.getClassLoader();
+		URL url = classLoader.getResource("/mnt/data/projects/export-database-structure/src/main/resources/数据库表结构(MySQL)-模板.docx");
+		return new FileInputStream(new File("/mnt/data/projects/export-database-structure/src/main/resources/数据库表结构(MySQL)-模板.docx"));
 	}
 	
 	public static File Base64ToFile(String path,boolean isMysql) throws IOException {
