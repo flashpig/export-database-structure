@@ -1,10 +1,6 @@
 package com.msw.java;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.Base64;
 
 public class FileUtils {
@@ -32,7 +28,32 @@ public class FileUtils {
 		stream.close();
 		return file;
 	}
-	
+
+	public static File newTemplateFile(String path) throws  IOException {
+		File templateFile = new File("/home/zhangtao/数据库表结构(MySQL)-模板.docx");
+		File newFile = new File(path);
+		copyFileUsingFileStreams(templateFile, newFile);
+		return newFile;
+	}
+
+	private static void copyFileUsingFileStreams(File source, File dest)
+			throws IOException {
+		InputStream input = null;
+		OutputStream output = null;
+		try {
+			input = new FileInputStream(source);
+			output = new FileOutputStream(dest);
+			byte[] buf = new byte[1024];
+			int bytesRead;
+			while ((bytesRead = input.read(buf)) > 0) {
+				output.write(buf, 0, bytesRead);
+			}
+		} finally {
+			input.close();
+			output.close();
+		}
+	}
+
 	/*public static void main(String args[]) throws IOException {
 		byte[] b = Files.readAllBytes(Paths.get("C:\\Users\\MOSHUNWEI\\Desktop\\data.docx"));
 
