@@ -69,7 +69,7 @@ public class App {
         String mysqlSql3 = "SHOW CREATE TABLE ";
         ResultSet rs = SqlUtils.getResultSet(SqlUtils.getConnnection(String.format("jdbc:mysql://%s:%s", map.get("h"), map.get("p")), map.get("-u"), map.get("-p")), mysqlSql1);
         Connection con = SqlUtils.getConnnection(String.format("jdbc:mysql://%s:%s", map.get("h"), map.get("p")), map.get("-u"), map.get("-p"));
-        SqlUtils.executeSQL(con, "use miitprc_pro");
+        SqlUtils.executeSQL(con, "use " + map.get("-n"));
         createDocDetail(rs, mysqlSql2, map, outFile, true, "MySQL数据库表结构", con, mysqlSql3);
     }
 
@@ -80,6 +80,7 @@ public class App {
         datas.put("title", title);
         List<TableData> tableList = new ArrayList<>();
         int i = 0;
+        datas.put("tableInfoList", list);
         for (Map<String, String> str : list) {
             if (str.get("table_name").startsWith("QRTZ") || str.get("table_name").startsWith("qrtz")) {
                 continue;
@@ -108,7 +109,7 @@ public class App {
 
         datas.put("tableList", tableList);
         HackLoopTableRenderPolicy policy = new HackLoopTableRenderPolicy();
-        Configure config = Configure.builder().bind("columnList", policy).build();
+        Configure config = Configure.builder().bind("tableInfoList", policy).bind("columnList", policy).build();
         XWPFTemplate template = XWPFTemplate.compile(FileUtils.TemplateInputStream(), config).render(datas);
 
         FileOutputStream out = null;
